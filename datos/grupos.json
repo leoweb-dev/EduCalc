@@ -1,0 +1,12 @@
+[
+  {
+    "grupo": "9no 3",
+    "cantidadEstudiantes": 3,
+    "cantidadNotas": 3
+  },
+  {
+    "grupo": "8vo 3",
+    "cantidadEstudiantes": 5,
+    "cantidadNotas": 3
+  }
+]

@@ -1,13 +1,16 @@
 package vista;
 
 import controlador.PromedioControlador;
+import modelo.ConfiguracionGrupo;
 import modelo.Grupo;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 import java.util.Locale;
 
 public class VentanaPrincipal extends JFrame {
@@ -53,14 +56,20 @@ public class VentanaPrincipal extends JFrame {
         JPanel abajo = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton botonCalcular = new JButton("Calcular promedios");
         botonCalcular.addActionListener(e -> calcular());
-        JButton botonGuardar = new JButton("Guardar JSON");
-        botonGuardar.addActionListener(e -> guardar());
+        JButton botonGuardarGrupo = new JButton("Guardar grupo");
+        botonGuardarGrupo.addActionListener(e -> guardarGrupo());
+        JButton botonCargarGrupo = new JButton("Cargar grupo");
+        botonCargarGrupo.addActionListener(e -> cargarGrupo());
+        JButton botonGuardarNotas = new JButton("Exportar notas ODS");
+        botonGuardarNotas.addActionListener(e -> guardarNotas());
         abajo.add(botonCalcular);
-        abajo.add(botonGuardar);
+        abajo.add(botonGuardarGrupo);
+        abajo.add(botonCargarGrupo);
+        abajo.add(botonGuardarNotas);
         abajo.add(etiquetaPromedioGrupo);
         add(abajo, BorderLayout.SOUTH);
 
-        setSize(700, 450);
+        setSize(950, 450);
         setLocationRelativeTo(null);
     }
 
@@ -129,21 +138,85 @@ public class VentanaPrincipal extends JFrame {
                 String.format(Locale.US, "Promedio del grupo: %.2f", grupo.getPromedioGrupo()));
     }
 
-    private void guardar() {
+    private void guardarGrupo() {
+        String nombre = campoGrupo.getText().trim();
+        if (nombre.isEmpty()) {
+            avisar("Escribe el nombre del grupo antes de guardarlo.");
+            return;
+        }
+        try {
+            controlador.guardarConfiguracionGrupo(
+                    nombre,
+                    (Integer) campoEstudiantes.getValue(),
+                    (Integer) campoNotas.getValue());
+            avisar("Grupo guardado correctamente.");
+        } catch (IOException | IllegalArgumentException ex) {
+            avisar("No se pudo guardar el grupo: " + ex.getMessage());
+        }
+    }
+
+    private void cargarGrupo() {
+        try {
+            List<ConfiguracionGrupo> grupos = controlador.cargarConfiguracionesGrupo();
+            if (grupos.isEmpty()) {
+                avisar("Todavía no hay grupos guardados.");
+                return;
+            }
+
+            String[] nombres = new String[grupos.size()];
+            for (int i = 0; i < grupos.size(); i++) {
+                nombres[i] = grupos.get(i).getNombre();
+            }
+            String seleccionado = (String) JOptionPane.showInputDialog(
+                    this,
+                    "Selecciona el grupo que deseas cargar:",
+                    "Cargar grupo",
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    nombres,
+                    nombres[0]);
+            if (seleccionado == null) {
+                return;
+            }
+
+            for (ConfiguracionGrupo grupo : grupos) {
+                if (grupo.getNombre().equals(seleccionado)) {
+                    campoGrupo.setText(grupo.getNombre());
+                    campoEstudiantes.setValue(grupo.getCantidadEstudiantes());
+                    campoNotas.setValue(grupo.getCantidadNotas());
+                    crearTabla();
+                    avisar("Grupo cargado correctamente. Puedes ingresar sus notas.");
+                    return;
+                }
+            }
+        } catch (IOException ex) {
+            avisar("No se pudo cargar los grupos: " + ex.getMessage());
+        }
+    }
+
+    private void guardarNotas() {
         if (!controlador.hayResultados()) {
             avisar("Primero calcula los promedios.");
             return;
         }
         JFileChooser selector = new JFileChooser();
-        selector.setSelectedFile(new File("promedios.json"));
+        selector.setFileFilter(new FileNameExtensionFilter("Hoja de cálculo ODS (*.ods)", "ods"));
+        selector.setSelectedFile(new File("promedios.ods"));
         if (selector.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
-                controlador.guardar(selector.getSelectedFile());
-                avisar("Archivo guardado correctamente.");
+                controlador.guardarResultados(conExtension(selector.getSelectedFile(), ".ods"));
+                avisar("Notas y promedios guardados correctamente.");
             } catch (IOException ex) {
                 avisar("No se pudo guardar: " + ex.getMessage());
             }
         }
+    }
+
+    private File conExtension(File archivo, String extension) {
+        if (archivo.getName().toLowerCase(Locale.ROOT).endsWith(extension)) {
+            return archivo;
+        }
+        return new File(archivo.getParentFile(), archivo.getName() + extension);
     }
 
     private void avisar(String mensaje) {

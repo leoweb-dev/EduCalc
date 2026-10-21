@@ -22,6 +22,10 @@ public class Grupo {
         return notas.length == 0 ? 0 : notas[0].length;
     }
 
+    public double getNota(int estudiante, int numeroNota) {
+        return notas[estudiante][numeroNota];
+    }
+
     // Promedio de cada estudiante
     public double[] getPromedios() {
         double[] promedios = new double[notas.length];
